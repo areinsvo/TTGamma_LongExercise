@@ -95,8 +95,9 @@ class TTGammaProcessor(processor.ProcessorABC):
         
         ### Accumulator for holding histograms
         self._accumulator = processor.dict_accumulator({
-            #Test histogram; not needed for final analysis
+            #Test histogram; not needed for final analysis but useful to check things are working 
             'all_photon_pt'                 : hist.Hist("Counts", dataset_axis, pt_axis),
+
 
             # 3. ADD HISTOGRAMS
             ## book histograms for photon pt, eta, and charged hadron isolation
@@ -139,7 +140,13 @@ class TTGammaProcessor(processor.ProcessorABC):
         output['EventCount'] = len(events)
 
         dataset = events.metadata['dataset']
-        
+
+        #Fill temp hist for testing purposes 
+        #Feel free to comment this out and copy-paste it to later in the code to check histgrams
+        #after each step (for example, after defining tightPhotons
+        output['all_photon_pt'].fill(dataset=dataset, 
+                                     pt=ak.flatten(events.Photon.pt))
+
         rho = events.fixedGridRhoFastjetAll
 
         #Temporary patch so we can add photon and lepton four vectors. Not needed for newer versions of NanoAOD
@@ -223,7 +230,7 @@ class TTGammaProcessor(processor.ProcessorABC):
         # 1. ADD SELECTION
 
         #select tight muons
-        # tight muons should have a pt of at least 30 GeV, |eta| < 2.4, pass the tight muon ID cut (tightID variable), and have a relative isolation of less than 0.15
+        # tight muons should have a pt of at least 30 GeV, |eta| < 2.4, pass the tight muon ID cut (tightId variable), and have a relative isolation of less than 0.15
         muonSelectTight = ((?) & 
                            (?) & 
                            (?) & 
@@ -251,13 +258,13 @@ class TTGammaProcessor(processor.ProcessorABC):
         #select tight electrons
         # 1. ADD SELECTION
         #select tight electrons
-        # tight electrons should have a pt of at least 35 GeV, |eta| < 2.1, pass the cut based electron id (cutBased variable in NanoAOD>=4), and pass the etaGap, D0, and DZ cuts defined above
+        # tight electrons should have a pt of at least 35 GeV, |eta| < 2.1, pass the cut based electron id (cutBased variable in NanoAOD>=4), and pass the eta gap, DXY, and DZ cuts defined above
         electronSelectTight = ((?) & 
                                (?) & 
-                               ? &      
-                               (?) &
+                               (?) &      
                                ? &
                                ? &
+                               ?
                               )
 
         #select loose electrons
@@ -370,13 +377,11 @@ class TTGammaProcessor(processor.ProcessorABC):
         ##medium jet ID cut
         jetIDbit = 1
 
-        jetSelectNoPt = ((?) &
-                         ((jets.jetId >> jetIDbit & 1)==1) &
-                         ? & ? & ? )
+        jetSelect = ((?) &
+                     (?) &
+                     ((jets.jetId >> jetIDbit & 1)==1) &
+                     ? & ? & ? )
         
-        #Add 30 GeV pt cut
-        jetSelect = jetSelectNoPt & ?
-
         # 1. ADD SELECTION
         #select the subset of jets passing the jetSelect cuts
         tightJet = ?
@@ -454,7 +459,6 @@ class TTGammaProcessor(processor.ProcessorABC):
 
         #add two jet selection criteria
         #   First, 'jetSel' which selects events with at least 4 tightJet and at least one bTaggedJet
-        nJets = 4
         selection.add('jetSel',      ???) 
         #   Second, 'jetSel_3j0t' which selects events with at least 3 tightJet and exactly zero bTaggedJet
         selection.add('jetSel_3j0t', ???) 
@@ -479,6 +483,7 @@ class TTGammaProcessor(processor.ProcessorABC):
         ## Define M3, mass of 3-jet pair with highest pT
         # find all possible combinations of 3 tight jets in the events 
         #hint: using the ak.combinations(array,n) method chooses n unique items from array. Use the "fields" option to define keys you can use to access the items
+        #More hints in the twiki
         triJet=ak.combinations(???)
         #Sum together jets from the triJet object and find its pt and mass
         triJetPt = (???).pt
@@ -526,7 +531,7 @@ class TTGammaProcessor(processor.ProcessorABC):
             matchedPho = ak.any(leadingPhoton.matched_gen.pdgId==22, axis=-1)
             # reco photons really generated as electrons
             matchedEle =  ak.any(abs(leadingPhoton.matched_gen.pdgId)==11, axis=-1)
-            # if the gen photon has a PDG ID > 25 in it's history, it has a hadronic parent
+            # if the gen photon has a PDG ID > 25 in its history, it has a hadronic parent
             hadronicParent = ak.any(leadingPhoton.matched_gen.maxParent>25, axis=-1)
             
             #####
@@ -575,7 +580,7 @@ class TTGammaProcessor(processor.ProcessorABC):
         weights = processor.Weights(len(events))
 
         if self.isMC:
-            ## Lumi weighting is done in postprocessing in our workflow
+            ## Note:Lumi weighting is done in postprocessing in our workflow
             # lumiWeight = np.ones(len(events))
             # nMCevents = self.mcEventYields[datasetFull]
             # xsec = crossSections[dataset]
@@ -708,26 +713,18 @@ class TTGammaProcessor(processor.ProcessorABC):
         # PART 3: Uncomment to add histograms
 
         """
-        systList = ['noweight','nominal']
-
         # PART 4: SYSTEMATICS
-        # uncomment the full list after systematics have been implemented        
-        #systList = ['noweight','nominal','puWeightUp','puWeightDown','muEffWeightUp','muEffWeightDown','eleEffWeightUp','eleEffWeightDown','btagWeightUp','btagWeightDown','ISRUp', 'ISRDown', 'FSRUp', 'FSRDown', 'PDFUp', 'PDFDown', 'Q2ScaleUp', 'Q2ScaleDown']
         systList = []
         if self.isMC:
             if self.jetSyst == 'nominal':
-                systList = ['nominal','muEffWeightUp','muEffWeightDown','eleEffWeightUp','eleEffWeightDown','ISRUp', 'ISRDown', 'FSRUp', 'FSRDown', 'PDFUp', 'PDFDown', 'Q2ScaleUp', 'Q2ScaleDown','puWeightUp','puWeightDown','btagWeightUp','btagWeightDown']
-                #systList = ["nominal"]
+                systList = ['noweight','nominal']
+                # uncomment the full list after systematics have been implemented 
+                #systList = ['noweight','nominal','muEffWeightUp','muEffWeightDown','eleEffWeightUp','eleEffWeightDown','ISRUp', 'ISRDown', 'FSRUp', 'FSRDown', 'PDFUp', 'PDFDown', 'Q2ScaleUp', 'Q2ScaleDown','puWeightUp','puWeightDown','btagWeightUp','btagWeightDown']
             else:
                 systList=[self.jetSyst]
         else:
             systList = ["noweight"]
 
-        #Fill temp hist for testing purposes
-#        output['all_photon_pt'].fill(dataset=dataset,
-#                                     pt=ak.flatten(tightPhoton.pt[:,:1]))
-
-        
         for syst in systList:
 
             #find the event weight to be used when filling the histograms    
@@ -759,7 +756,8 @@ class TTGammaProcessor(processor.ProcessorABC):
 
                 # 3. FILL HISTOGRAMS
                 #    fill photon_pt and photon_eta, using the tightPhotons array, from events passing the phosel selection
-        
+                #    Note that pt and eta will need to be flattened with ak.flatten(), but evtWeight and phoCategory do not
+                #    Make sure to apply the correct mask to the category, weight, and photon pt or eta
                 output['photon_pt'].fill(dataset=dataset,
                                          pt=?,
                                          category=?,
